@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal - Professional Trading Tracker</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- TradingView Charting Library -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+</head>
+<body>
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>
+                    <img src="/favicon.png" alt="Logo" style="width: 50px; height: 50px; vertical-align: middle;">
+                    TraderLog
+                </h1>
+                <p>Professional Trading Tracker & Analytics</p>
+            </div>
+            
+            <div id="loginForm" class="auth-form active">
+                <h2>Login to Your Journal</h2>
+                <p style="text-align: center; color: var(--color-text-secondary); margin-bottom: 24px; font-size: 14px;">
+                   Enter the email you used to subscribe. We'll send you a magic link to log in instantly.
+                </p>
+                <form id="loginFormElement" novalidate>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required placeholder="Enter your subscription email">
+                        <div class="form-error" id="login-email-error"></div>
+                    </div>
+                    <button type="submit" class="btn btn--primary btn--full-width">Send Magic Link</button>
+                </form>
+            </div>
+
+            <div id="magicLinkSent" class="auth-form" style="text-align: center;">
+                <h2>Check Your Email</h2>
+                <p>We've sent a magic login link to <strong id="sentToEmail" style="color: var(--color-primary);"></strong>. Click the link to sign in.</p>
+                <p style="color: var(--color-text-secondary); font-size: 12px; margin-top: 16px;">Didn't receive it? Check your spam folder.</p>
+                <button id="resendMagicLinkBtn" class="btn btn--secondary btn--full-width" style="margin-top: 12px;">Resend Magic Link</button>
+            </div>
+
+
+            <div class="auth-divider"><span>OR</span></div>
+            <button id="googleSignInBtn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+                Sign in with Google
+            </button>
+            <p style="text-align: center; color: var(--color-text-secondary); margin-top: 16px; font-size: 12px;">
+                Make sure to use the same email you provided while subscribing.
+            </p>
+            </div>
+    </div>
+    
+    <!-- ======================================================= -->
+    <!-- SUBSCRIPTION EXPIRED SCREEN (LINK CORRECTED)            -->
+    <!-- ======================================================= -->
+    <div id="subscriptionExpiredScreen" class="auth-screen hidden">
+        <div class="auth-container" style="text-align: center;">
+             <h1>
+                <img src="/favicon.png" alt="Logo" style="width: 50px; height: 50px; vertical-align: middle;">
+                TraderLog
+            </h1>
+            <h2 style="margin-top: 20px;">Subscription Required</h2>
+            <p id="expiredReason" style="color: var(--color-text-secondary); margin: 16px 0;">Your subscription has expired. Please renew to continue using the journal.</p>
+            <!-- *** FIX: CORRECTED THE LINK TO THE PAYMENT PAGE *** -->
+            <a href="Rpp1 (6).html" class="btn btn--primary" style="margin-bottom: 16px; text-decoration: none;">Renew Subscription</a>
+            <button id="expiredLogoutBtn" class="btn btn--outline btn--full-width">Logout</button>
+        </div>
+    </div>
+
+
+    <div id="mainApp" class="main-app hidden">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-brand">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <img src="/favicon.png" alt="Logo" style="width: 50px; height: 50px;">
+                        <h2 style="margin: 0;">TraderLog</h2>
+                    </div>
+                </div>
+                <!-- Hamburger Menu Button -->
+                <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">
+                    <span class="hamburger"></span>
+                </button>
+                <!-- Collapsible Navigation Content -->
+                <div class="nav-collapse" id="navCollapse">
+                    <ul class="nav-menu">
+                        <li class="nav-item"><button class="nav-link active" data-section="dashboard">Dashboard</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="notes">Notes</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="history">Trade History</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="analytics">Analytics</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="ai-suggestions">AI Suggestions</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="reports">Reports</button></li>
+                        <li class="nav-item"><button class="nav-link" data-section="charts">Charts</button></li>
+                    </ul>
+                    <div class="nav-user">
+                        <div class="user-info">
+                            <span class="user-name" id="currentUserEmail">User</span>
+                            <button class="theme-toggle" id="themeToggle">🌙</button>
+                            <button class="btn btn--outline btn--sm" id="logoutBtn">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <section id="dashboard" class="section active">
+                <div class="container">
+                    <div class="section-header">
+                        <h1>Trading Dashboard</h1>
+                        <div class="header-actions">
+                            <select id="currencySelector" class="form-control">
+                                <option value="₹">INR (₹)</option>
+                                <option value="$">USD ($)</option>
+                            </select>
+                            <button class="btn btn--secondary" id="showRulebookBtn">My Rulebook</button>
+                            <button class="btn btn--primary" id="quickAddTrade">+ Add New Trade</button>
+                        </div>
+                    </div>
+
+                    <div id="newsTickerContainer" class="news-ticker-container"></div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-content"><h3 id="totalPL" class="stat-value">₹0</h3><p>Total P&L</p></div></div>
+                        <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-content"><h3 id="winRate" class="stat-value">0%</h3><p>Win Rate</p></div></div>
+                        <div class="stat-card"><div class="stat-icon">🎯</div><div class="stat-content"><h3 id="totalTrades" class="stat-value">0</h3><p>Total Trades</p></div></div>
+                        <div class="stat-card"><div class="stat-icon">⚖️</div><div class="stat-content"><h3 id="avgRR" class="stat-value">1:0</h3><p>Avg Risk:Reward</p></div></div>
+                    </div>
+
+                    <div class="dashboard-main-grid">
+                        <div class="dashboard-col-left">
+                            <div id="plCard" class="card">
+                                <div class="card__header">
+                                    <h3>Analytics Snapshot</h3>
+                                    <button class="view-all-link" data-section="analytics">View Details</button>
+                                </div>
+                                <div class="card__body">
+                                    <h4>P&L Curve</h4>
+                                    <div class="dashboard-chart-container">
+                                        <canvas id="dashboardPlChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="recent-trades card">
+                                <div class="card__header">
+                                    <h3>Recent Trades</h3>
+                                    <button class="view-all-link" data-section="history">View All</button>
+                                </div>
+                                <div class="card__body">
+                                    <div id="recentTradesList">
+                                        <div class="loading">Loading recent trades...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-col-right">
+                            <div class="confidence-tracker card">
+                                <div class="card__body">
+                                    <h3>How are you feeling today?</h3>
+                                    <div class="confidence-controls">
+                                        <div class="confidence-slider-container">
+                                            <label for="dailyConfidence" class="form-label">Confidence (1-10)</label>
+                                            <input type="range" id="dailyConfidence" class="range-input" min="1" max="10" value="5">
+                                            <div class="range-value" id="confidenceValue">5</div>
+                                        </div>
+                                        <button class="btn btn--primary" id="saveConfidenceBtn">Submit</button>
+                                    </div>
+                                    <div id="confidenceMessage" class="confidence-message"></div>
+                                </div>
+                            </div>
+                            <div id="aiCard" class="card">
+                                <div class="card__header">
+                                    <h3>AI Suggestions</h3>
+                                    <button class="view-all-link" data-section="ai-suggestions">More Insights</button>
+                                </div>
+                                <div class="card__body">
+                                    <div id="dashboardAiFeedback" class="suggestion-content">
+                                        <div class="loading">Loading AI feedback...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="dashboardCalendarCard" class="card">
+                                <div class="card__header">
+                                    <h3>P&L Calendar</h3>
+                                    <div class="calendar-nav">
+                                        <button class="btn btn--outline btn--sm" id="dashPrevMonth">‹</button>
+                                        <span id="dashCurrentMonth">Loading...</span>
+                                        <button class="btn btn--outline btn--sm" id="dashNextMonth">›</button>
+                                    </div>
+                                </div>
+                                <div class="card__body">
+                                    <div id="dashPlCalendar" class="pl-calendar"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="add-trade" class="section">
+                 <div class="container">
+                    <div class="section-header"><h1>Add New Trade</h1><p>Record all details of your trade for complete analysis</p></div>
+                    <div class="add-trade-container">
+                        <div class="card add-trade-card">
+                            <div class="card__header"><h3>Trade Information</h3></div>
+                            <div class="card__body">
+                                <form id="addTradeForm" novalidate>
+                                    <div class="form-grid">
+                                        <div class="form-group"><label class="form-label">Symbol *</label><input type="text" name="symbol" class="form-control" required placeholder="e.g., NIFTY, BANKNIFTY"><div class="form-error" id="symbol-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Direction *</label><select name="direction" class="form-control" required><option value="">Select Direction</option><option value="Long">Long</option><option value="Short">Short</option></select><div class="form-error" id="direction-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Quantity *</label><input type="number" name="quantity" class="form-control" required placeholder="Number of shares/lots" min="1"><div class="form-error" id="quantity-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Entry Price *</label><input type="number" name="entryPrice" class="form-control" required placeholder="Entry price" step="0.01" min="0"><div class="form-error" id="entryPrice-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Exit Price *</label><input type="number" name="exitPrice" class="form-control" required placeholder="Exit price" step="0.01" min="0"><div class="form-error" id="exitPrice-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Stop Loss</label><input type="number" name="stopLoss" class="form-control" placeholder="Stop loss price" step="0.01" min="0"></div>
+                                        <div class="form-group"><label class="form-label">Target Price</label><input type="number" name="targetPrice" class="form-control" placeholder="Target price" step="0.01" min="0"></div>
+                                        
+                                        <div class="form-group">
+                                            <label class="form-label">Strategy</label>
+                                            <select name="strategy" id="addTradeStrategySelect" class="form-control">
+                                                <option value="">Select Strategy</option>
+                                                <option value="Breakout + VWAP">Breakout + VWAP</option>
+                                                <option value="Support Resistance">Support Resistance</option>
+                                                <option value="Trendline Bounce">Trendline Bounce</option>
+                                                <option value="Breakout Failure">Breakout Failure</option>
+                                                <option value="Scalping">Scalping</option>
+                                                <option value="Swing Trading">Swing Trading</option>
+                                                <option value="Momentum Trading">Momentum Trading</option>
+                                                <option value="Position Trading">Position Trading</option>
+                                                <option value="Mean Reversion">Mean Reversion</option>
+                                                <option value="Pairs Trading">Pairs Trading</option>
+                                                <option value="Arbitrage">Arbitrage</option>
+                                                <option value="News-Based Trading">News-Based Trading</option>
+                                                <option value="Algorithmic Trading">Algorithmic Trading</option>
+                                                <option value="Carry Trade">Carry Trade</option>
+                                                <option value="Elliott Wave Theory">Elliott Wave Theory</option>
+                                                <option value="Gann Theory">Gann Theory</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-group hidden" id="otherStrategyGroup">
+                                            <label class="form-label">Please specify strategy</label>
+                                            <input type="text" name="other_strategy" class="form-control" placeholder="Enter your custom strategy">
+                                        </div>
+
+                                        <div class="form-group"><label class="form-label">Exit Reason</label><select name="exitReason" class="form-control"><option value="">Select Exit Reason</option><option value="Target Hit">Target Hit</option><option value="SL Hit">Stop Loss Hit</option><option value="Manual Exit">Manual Exit</option><option value="Time Based Exit">Time Based Exit</option><option value="Breakeven">Breakeven</option><option value="Trailing Stop">Trailing Stop</option></select></div>
+                                        <div class="form-group"><label class="form-label">Confidence Level (1-10)</label><input type="range" name="confidenceLevel" class="range-input" min="1" max="10" value="5"><div class="range-value">5</div></div>
+                                        <div class="form-group"><label class="form-label">Entry Date *</label><input type="datetime-local" name="entryDate" class="form-control" required><div class="form-error" id="entryDate-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Exit Date *</label><input type="datetime-local" name="exitDate" class="form-control" required><div class="form-error" id="exitDate-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Pre-Trade Emotion</label><select name="preEmotion" class="form-control"><option value="">Select Emotion</option><option value="Confident">Confident</option><option value="Excited">Excited</option><option value="Nervous">Nervous</option><option value="Fearful">Fearful</option><option value="Neutral">Neutral</option><option value="Greedy">Greedy</option><option value="Impatient">Impatient</option></select></div>
+                                        <div class="form-group"><label class="form-label">Post-Trade Emotion</label><select name="postEmotion" class="form-control"><option value="">Select Emotion</option><option value="Satisfied">Satisfied</option><option value="Relieved">Relieved</option><option value="Disappointed">Disappointed</option><option value="Frustrated">Frustrated</option><option value="Regretful">Regretful</option><option value="Elated">Elated</option><option value="Neutral">Neutral</option></select></div>
+                                        <div class="form-group full-width"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="3" placeholder="What went well, what went wrong, improvements needed..."></textarea></div>
+                                    </div>
+
+                                    <details class="collapse-card">
+                                        <summary>Pre-Trade Psychology</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-grid">
+                                                <div class="form-group"><label class="form-label" title="How well did you sleep last night?">Sleep Quality (1-10)</label><input type="range" name="sleepQuality" class="range-input" min="1" max="10" value="5"><div class="range-value">5</div></div>
+                                                <div class="form-group"><label class="form-label" title="How is your physical energy today?">Physical Condition (1-10)</label><input type="range" name="physicalCondition" class="range-input" min="1" max="10" value="5"><div class="range-value">5</div></div>
+                                                <div class="form-group"><label class="form-label">Market Sentiment Assessment</label><select name="marketSentiment" class="form-control"><option value="">Select</option><option>Bullish</option><option>Bearish</option><option>Neutral</option><option>Uncertain</option></select></div>
+                                                <div class="form-group"><label class="form-label">News / Events Awareness</label><select name="newsAwareness" class="form-control"><option value="">Select</option><option>Major news expected</option><option>Minor news</option><option>No significant news</option><option>Unaware</option></select></div>
+                                                <div class="form-group"><label class="form-label">Overall Market Environment</label><select name="marketEnvironment" class="form-control"><option value="">Select</option><option>Strong Trend Up</option><option>Weak Trend Up</option><option>Sideways / Range</option><option>Weak Trend Down</option><option>Strong Trend Down</option></select></div>
+                                                <div class="form-group"><label class="form-label" title="Are you feeling Fear of Missing Out on this trade?">FOMO Level (1-10)</label><input type="range" name="fomoLevel" class="range-input" min="1" max="10" value="1"><div class="range-value">1</div></div>
+                                                <div class="form-group"><label class="form-label">Stress Level Before Trade (1-10)</label><input type="range" name="preStress" class="range-input" min="1" max="10" value="1"><div class="range-value">1</div></div>
+                                            </div>
+                                        </div>
+                                    </details>
+
+                                    <details class="collapse-card">
+                                        <summary>Trade Setup Analysis</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-grid">
+                                                <div class="form-group full-width"><label class="form-label">Multiple Time-Frame Confirmation</label>
+                                                    <div class="checkbox-group">
+                                                        <label><input type="checkbox" name="multiTimeframes" value="Daily aligned"> Daily aligned</label><br>
+                                                        <label><input type="checkbox" name="multiTimeframes" value="4H aligned"> 4H aligned</label><br>
+                                                        <label><input type="checkbox" name="multiTimeframes" value="1H aligned"> 1H aligned</label><br>
+                                                        <label><input type="checkbox" name="multiTimeframes" value="15min aligned"> 15min aligned</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group"><label class="form-label">Volume Analysis</label><select name="volumeAnalysis" class="form-control"><option value="">Select</option><option>High volume</option><option>Average volume</option><option>Low volume</option><option>Volume spike</option><option>Volume dry-up</option></select></div>
+                                                <div class="form-group full-width"><label class="form-label">Technical Confluence Factors</label>
+                                                    <div class="checkbox-group">
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Support / Resistance"> Support / Resistance</label><br>
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Moving Average"> Moving Average</label><br>
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Trendline"> Trendline</label><br>
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Fibonacci"> Fibonacci</label><br>
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Indicator signal"> Indicator signal</label><br>
+                                                        <label><input type="checkbox" name="technicalConfluence" value="Pattern completion"> Pattern completion</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group"><label class="form-label">Market Session</label><select name="marketSession" class="form-control"><option value="">Select</option><option>Pre-market</option><option>Market Open (9:30-10:30)</option><option>Mid-morning (10:30-12:00)</option><option>Lunch (12:00-14:00)</option><option>Afternoon (14:00-15:30)</option><option>Market Close (15:30-16:00)</option><option>After-hours</option></select></div>
+                                                <div class="form-group"><label class="form-label">Trade Catalyst</label><select name="tradeCatalyst" class="form-control"><option value="">Select</option><option>Technical breakout</option><option>Earnings</option><option>News event</option><option>Sector rotation</option><option>Market reversal</option><option>Momentum follow-through</option><option>Other</option></select></div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    
+                                    <details class="collapse-card">
+                                        <summary>Rulebook Check</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-group full-width">
+                                                <label class="form-label">Which rules did you follow for this trade?</label>
+                                                <div id="rulebookChecklist" class="checkbox-group">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+
+                                    <details class="collapse-card">
+                                        <summary>During Trade Management</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-grid">
+                                                <div class="form-group full-width"><label class="form-label">Did You Wait for Setup?</label>
+                                                    <div class="radio-group">
+                                                        <label><input type="radio" name="waitedForSetup" value="Yes, completely"> Yes, completely</label><br>
+                                                        <label><input type="radio" name="waitedForSetup" value="Partially"> Partially</label><br>
+                                                        <label><input type="radio" name="waitedForSetup" value="No, entered early"> No, entered early</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group"><label class="form-label">Position Sizing Comfort (1-10)</label><input type="range" name="positionComfort" class="range-input" min="1" max="10" value="5"><div class="range-value">5</div></div>
+                                                <div class="form-group"><label class="form-label">Plan Deviation</label><select name="planDeviation" class="form-control"><option value="">Select</option><option>Stuck to plan completely</option><option>Minor deviation</option><option>Major deviation</option><option>Completely changed plan</option></select></div>
+                                                <div class="form-group"><label class="form-label">Stress During Trade (1-10)</label><input type="range" name="stressDuring" class="range-input" min="1" max="10" value="1"><div class="range-value">1</div></div>
+                                            </div>
+                                        </div>
+                                    </details>
+
+                                    <details class="collapse-card">
+                                        <summary>Exit Analysis</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-grid">
+                                                <div class="form-group"><label class="form-label">Primary Exit Reason</label><select name="primaryExitReason" class="form-control"><option value="">Select</option><option>Target hit</option><option>Stop loss hit</option><option>Time-based exit</option><option>Manual profit taking</option><option>Fear-based exit</option><option>Greed-based hold too long</option><option>News/event exit</option><option>Technical signal change</option></select></div>
+                                                <div class="form-group"><label class="form-label">Exit Emotion</label><select name="exitEmotion" class="form-control"><option value="">Select</option><option>Satisfied</option><option>Regretful</option><option>Frustrated</option><option>Elated</option><option>Neutral</option><option>Disappointed</option><option>Relieved</option></select></div>
+                                                <div class="form-group full-width"><label class="form-label">Would Take Again?</label>
+                                                    <div class="radio-group">
+                                                        <label><input type="radio" name="wouldTakeAgain" value="Definitely yes"> Definitely yes</label><br>
+                                                        <label><input type="radio" name="wouldTakeAgain" value="Probably yes"> Probably yes</label><br>
+                                                        <label><input type="radio" name="wouldTakeAgain" value="Maybe"> Maybe</label><br>
+                                                        <label><input type="radio" name="wouldTakeAgain" value="Probably no"> Probably no</label><br>
+                                                        <label><input type="radio" name="wouldTakeAgain" value="Definitely no"> Definitely no</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group full-width"><label class="form-label">Key Lesson Learned</label><textarea name="lesson" class="form-control" rows="3" placeholder="What's the main lesson from this trade?"></textarea></div>
+                                            </div>
+                                        </div>
+                                    </details>
+
+                                    <details class="collapse-card">
+                                        <summary>Market Context</summary>
+                                        <div class="collapse-content">
+                                            <div class="form-grid">
+                                                <div class="form-group"><label class="form-label">Market Volatility Today</label><select name="volatilityToday" class="form-control"><option value="">Select</option><option>Very high (VIX >30)</option><option>High (VIX 20-30)</option><option>Normal (VIX 15-20)</option><option>Low (VIX <15)</option></select></div>
+                                                <div class="form-group"><label class="form-label">Sector Performance</label><select name="sectorPerformance" class="form-control"><option value="">Select</option><option>Sector leading market</option><option>Sector in-line with market</option><option>Sector lagging market</option><option>Sector against market trend</option></select></div>
+                                                <div class="form-group full-width"><label class="form-label">Economic Events Today</label>
+                                                    <div class="checkbox-group">
+                                                        <label><input type="checkbox" name="economicEvents" value="Fed announcement"> Fed announcement</label><br>
+                                                        <label><input type="checkbox" name="economicEvents" value="Earnings"> Earnings</label><br>
+                                                        <label><input type="checkbox" name="economicEvents" value="Economic data"> Economic data</label><br>
+                                                        <label><input type="checkbox" name="economicEvents" value="Geopolitical news"> Geopolitical news</label><br>
+                                                        <label><input type="checkbox" name="economicEvents" value="None"> None</label>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group full-width"><label class="form-label">Personal Distractions</label>
+                                                    <div class="checkbox-group">
+                                                        <label><input type="checkbox" name="personalDistractions" value="Work stress"> Work stress</label><br>
+                                                        <label><input type="checkbox" name="personalDistractions" value="Personal issues"> Personal issues</label><br>
+                                                        <label><input type="checkbox" name="personalDistractions" value="Health concerns"> Health concerns</label><br>
+                                                        <label><input type="checkbox" name="personalDistractions" value="Time pressure"> Time pressure</label><br>
+                                                        <label><input type="checkbox" name="personalDistractions" value="None"> None</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    <div class="calculated-fields">
+                                        <h4>Calculated Values</h4>
+                                        <div class="calc-grid">
+                                            <div class="calc-item"><span class="calc-label">Gross P&L:</span><span class="calc-value" id="calcGrossPL">₹0</span></div>
+                                            <div class="calc-item"><span class="calc-label">Net P&L:</span><span class="calc-value" id="calcNetPL">₹0</span></div>
+                                            <div class="calc-item"><span class="calc-label">Risk:Reward:</span><span class="calc-value" id="calcRiskReward">1:0</span></div>
+                                            <div class="calc-item"><span class="calc-label">Capital Risk %:</span><span class="calc-value" id="calcCapitalRisk">0%</span></div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="card__footer add-trade-footer"><button type="button" class="btn btn--outline" id="resetTradeForm">Reset</button><button type="submit" form="addTradeForm" class="btn btn--primary">Save Trade</button></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="notes" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h1>Daily Notes</h1>
+                    </div>
+                    <p>Reflect on your trading day, strategy, and mindset.</p>
+                    <div class="card">
+                        <div class="card__body">
+                            <textarea id="dailyNoteContent" class="form-control" rows="10" placeholder="Write your thoughts for today..."></textarea>
+                        </div>
+                        <div class="card__footer" style="display: flex; justify-content: flex-end;">
+                            <button id="saveNoteBtn" class="btn btn--primary">Save Note</button>
+                        </div>
+                    </div>
+                    <div class="notes-history card" style="margin-top: 24px;">
+                         <div class="card__header">
+                            <h3>Past Notes</h3>
+                        </div>
+                        <div id="notesHistoryContainer" class="card__body">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="history" class="section"><div class="container"><div class="section-header"><h1>Trade History</h1><div class="filter-controls"><select id="symbolFilter" class="form-control" style="width: 150px;"><option value="">All Symbols</option></select><select id="strategyFilter" class="form-control" style="width: 150px;"><option value="">All Strategies</option></select></div></div><div id="historyContent"><div class="loading">Loading trade history...</div></div></div></section>
+
+            <section id="analytics" class="section">
+                <div class="container">
+                    <div class="section-header"><h1>Analytics & Performance</h1></div>
+                    <div class="analytics-summary"><div class="summary-card card"><div class="card__body"><h3>Performance Summary</h3><div class="summary-stats"><div class="summary-item"><span class="label">Total Trades:</span><span class="value" id="analyticsTotalTrades">0</span></div><div class="summary-item"><span class="label">Win Rate:</span><span class="value" id="analyticsWinRate">0%</span></div><div class="summary-item"><span class="label">Net P&L:</span><span class="value" id="analyticsNetPL">₹0</span></div><div class="summary-item"><span class="label">Best Trade:</span><span class="value" id="analyticsBestTrade">₹0</span></div><div class="summary-item"><span class="label">Worst Trade:</span><span class="value" id="analyticsWorstTrade">₹0</span></div><div class="summary-item"><span class="label">Avg Risk:Reward:</span><span class="value" id="analyticsAvgRR">1:0</span></div></div></div></div></div>
+                    <div class="charts-grid">
+                        <div class="chart-container" style="position: relative; height: 400px;"><h3>P&L Curve Over Time</h3><canvas id="plChart"></canvas></div>
+                        <div class="chart-container" style="position: relative; height: 400px;"><h3>Risk-Reward Distribution</h3><canvas id="rrChart"></canvas></div>
+                        <div class="chart-container" style="position: relative; height: 400px;"><h3>Strategy Performance</h3><canvas id="strategyChart"></canvas></div>
+                        <div class="chart-container" style="position: relative; height: 400px;"><h3>Time-Based Analysis</h3><canvas id="timeChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ai-suggestions" class="section">
+                <div class="container">
+                    <div class="section-header"><h1>🧠 AI Suggestions</h1><p>Personalized insights and recommendations based on your trading data</p></div>
+                    <div class="smart-suggestion-banner card"><div class="card__body"><div class="smart-suggestion-content"><h3>💡 Smart Trading Insight</h3><div id="smartInsight" class="smart-suggestion-text">Analyzing your trading patterns...</div></div></div></div>
+                    <div class="suggestions-grid"><div class="suggestion-card card"><div class="card__header"><h3>🧠 AI-Based Trade Feedback</h3></div><div class="card__body"><div id="aiFeedback" class="suggestion-content">Loading feedback analysis...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>📊 Personal Trading Edge Analyzer</h3></div><div class="card__body"><div id="edgeAnalyzer" class="suggestion-content">Calculating your trading edge...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>📊 Daily Confidence Analysis</h3></div><div class="card__body"><div id="confidenceAnalysis" class="suggestion-content">Analyzing confidence patterns...</div><div class="chart-container" style="position: relative; height: 300px; margin-top: 16px;"><canvas id="confidenceChart"></canvas></div></div></div><div class="suggestion-card card"><div class="card__header"><h3>🔄 Repeat Trade Detection</h3></div><div class="card__body"><div id="repeatTrades" class="suggestion-content">Analyzing for recurring patterns...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>🎯 Smart Entry Suggestions</h3></div><div class="card__body"><div id="entryAnalysis" class="suggestion-content">Analyzing entry patterns...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>🧘‍♂️ Emotional Bias Tracker</h3></div><div class="card__body"><div id="emotionalBias" class="suggestion-content">Tracking emotional patterns...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>⭐ Setup Quality Score</h3></div><div class="card__body"><div id="setupQuality" class="suggestion-content">Evaluating setup quality...</div></div></div><div class="suggestion-card card"><div class="card__header"><h3>⏰ Time-Based Confidence Score</h3></div><div class="card__body"><div id="timeConfidence" class="suggestion-content">Analyzing time-based performance...</div></div></div></div>
+                </div>
+            </section>
+
+            <section id="reports" class="section">
+                <div class="container">
+                    <div class="section-header"><h1>Reports & Calendar</h1><button class="btn btn--primary" id="exportData">Export to CSV</button></div>
+                    <div class="calendar-section card"><div class="card__header"><h3>P&L Calendar</h3><div class="calendar-nav"><button class="btn btn--outline btn--sm" id="prevMonth">‹</button><span id="currentMonth">July 2025</span><button class="btn btn--outline btn--sm" id="nextMonth">›</button></div></div><div class="card__body"><div id="plCalendar" class="pl-calendar"></div><div class="calendar-legend"><div class="legend-item"><div class="legend-color profit-high"></div><span>High Profit (>₹1000)</span></div><div class="legend-item"><div class="legend-color profit-low"></div><span>Profit</span></div><div class="legend-item"><div class="legend-color no-trades"></div><span>No Trades</span></div><div class="legend-item"><div class="legend-color loss-low"></div><span>Loss</span></div><div class="legend-item"><div class="legend-color loss-high"></div><span>High Loss (<-₹1000)</span></div></div></div></div>
+                    <div class="reports-grid">
+                        <div class="report-card card"><div class="card__body"><h3>Weekly Summary</h3><div id="weeklyReport"><div class="loading">Generating weekly report...</div></div></div></div>
+                        <div class="report-card card"><div class="card__body"><h3>Monthly Analysis</h3><div id="monthlyReport"><div class="loading">Generating monthly report...</div></div></div></div>
+                        <div class="report-card card"><div class="card__body"><h3>Strategy Performance</h3><div id="strategyReport"><div class="loading">Analyzing strategies...</div></div></div></div>
+                        <div class="report-card card"><div class="card__body"><h3>Emotional Patterns</h3><div id="emotionalReport"><div class="loading">Analyzing emotional patterns...</div></div></div></div>
+                        <div class="report-card card">
+                            <div class="card__body">
+                                <h3>Rulebook Adherence</h3>
+                                <div id="rulebookReport">
+                                    <div class="loading">Generating rulebook report...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="charts" class="section">
+                <div class="container">
+                    <div class="section-header">
+                        <h1>Live Market Charts</h1>
+                    </div>
+                    <div class="tradingview-widget-container" style="height: 75vh; width: 100%;">
+                      <div id="tradingview_chart_widget" style="height: calc(100% - 32px); width: 100%;"></div>
+                      <div class="tradingview-widget-copyright">
+                          <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                              <span class="blue-text">Track all markets on TradingView</span>
+                          </a>
+                      </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        <div id="tradeModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Trade Details</h2><button class="modal-close" onclick="app.hideTradeModal()">&times;</button></div><div class="modal-body" id="tradeModalBody"></div><div class="modal-footer"><button class="btn btn--outline" onclick="app.hideTradeModal()">Close</button><button class="btn btn--primary" id="editTradeBtn">Edit Trade</button></div></div></div>
+        
+        <div id="noteModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Note Details</h2>
+                    <button class="modal-close" onclick="app.hideNoteModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="noteModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--outline" onclick="app.hideNoteModal()">Close</button>
+                    <button class="btn btn--primary" id="saveNoteChangesBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="rulebookModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>My Rulebook</h2>
+                    <button class="modal-close" onclick="app.hideRulebookModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="card">
+                        <div class="card__header"><h3>Add/Edit Rule</h3></div>
+                        <div class="card__body">
+                            <form id="rulebookForm">
+                                <input type="hidden" id="ruleId" name="ruleId">
+                                <div class="form-group">
+                                    <label for="ruleTitle" class="form-label">Rule Title</label>
+                                    <input type="text" id="ruleTitle" name="ruleTitle" class="form-control" placeholder="e.g., Don't chase trades" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="ruleDescription" class="form-label">Rule Description</label>
+                                    <textarea id="ruleDescription" name="ruleDescription" class="form-control" rows="3" placeholder="Detailed description of the rule"></textarea>
+                                </div>
+                                <div class="form-actions" style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                                    <button type="button" id="cancelEditRuleBtn" class="btn btn--outline hidden">Cancel</button>
+                                    <button type="submit" class="btn btn--primary">Save Rule</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card__header"><h3>Saved Rules</h3></div>
+                        <div id="ruleListContainer" class="card__body">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div id="aiChatWidget" class="chat-widget hidden">
+        <div id="aiChatWindow" class="chat-window hidden">
+            <div class="chat-header">
+                <h3>AI Journal Assistant</h3>
+                <button id="closeChatBtn" class="chat-close-btn">&times;</button>
+            </div>
+            <div id="aiChatMessages" class="chat-messages">
+                <div class="chat-message ai-message">
+                    Hello! How can I help you reflect today?
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="aiChatInput" placeholder="Ask about your trades...">
+                <button id="sendChatBtn" class="chat-send-btn">➤</button>
+            </div>
+        </div>
+        <div id="aiChatBubble" class="chat-bubble">
+            🧠
+        </div>
+    </div>
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="calendarTooltip" class="calendar-tooltip"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
