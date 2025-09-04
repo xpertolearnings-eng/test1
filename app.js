@@ -25,6 +25,7 @@ class TradingJournalApp {
     this.allNotes = [];
     this.allRules = [];
     this.currentEditingNoteId = null;
+    this.currentEditingTradeId = null; // FIX: Added for edit trade state
     this.charts = {};
     this.forecastChart = null;
     this.mainListenersAttached = false;
@@ -327,12 +328,53 @@ class TradingJournalApp {
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('mainApp').classList.remove('hidden');
     document.getElementById('subscriptionExpiredScreen')?.classList.add('hidden');
-    document.getElementById('aiChatWidget')?.classList.remove('hidden'); // RESTORED: Show AI widget here
+    document.getElementById('aiChatWidget')?.classList.remove('hidden');
 
     if (!this.mainListenersAttached) {
       this.attachMainListeners();
       this.mainListenersAttached = true;
     }
+    
+    // FIX: Attach AI chat listeners here to ensure elements are visible
+    const chatBubble = document.getElementById('aiChatBubble');
+    const chatWindow = document.getElementById('aiChatWindow');
+    const closeChatBtn = document.getElementById('closeChatBtn');
+    const chatInput = document.getElementById('aiChatInput');
+    const sendChatBtn = document.getElementById('sendChatBtn');
+
+    if (chatBubble && !chatBubble.dataset.listenerAttached) {
+        chatBubble.addEventListener('click', () => {
+            chatWindow.classList.toggle('hidden');
+        });
+        chatBubble.dataset.listenerAttached = 'true';
+    }
+    if (closeChatBtn && !closeChatBtn.dataset.listenerAttached) {
+        closeChatBtn.addEventListener('click', () => {
+            chatWindow.classList.add('hidden');
+        });
+        closeChatBtn.dataset.listenerAttached = 'true';
+    }
+    
+    const sendMessageHandler = () => {
+      if (chatInput.value.trim()) {
+        this.handleSendMessage();
+      }
+    };
+
+    if (sendChatBtn && !sendChatBtn.dataset.listenerAttached) {
+        sendChatBtn.addEventListener('click', sendMessageHandler);
+        sendChatBtn.dataset.listenerAttached = 'true';
+    }
+    if (chatInput && !chatInput.dataset.listenerAttached) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendMessageHandler();
+        }
+      });
+      chatInput.dataset.listenerAttached = 'true';
+    }
+    
     this.updateUserInfo();
     this.showSection('dashboard');
   }
@@ -357,6 +399,10 @@ class TradingJournalApp {
     document.getElementById('nextMonth').addEventListener('click', () => this.changeCalendarMonth(1));
     document.getElementById('dashPrevMonth').addEventListener('click', () => this.changeCalendarMonth(-1));
     document.getElementById('dashNextMonth').addEventListener('click', () => this.changeCalendarMonth(1));
+    
+    // FIX: Add Edit Trade Button Listener
+    document.getElementById('editTradeBtn').addEventListener('click', () => this.showEditTradeModal());
+
     document.addEventListener('data-changed', () => {
       const activeSection = document.querySelector('.section.active');
       if (activeSection) this.showSection(activeSection.id);
@@ -385,44 +431,13 @@ class TradingJournalApp {
         });
       });
     }
-
-    const chatBubble = document.getElementById('aiChatBubble');
-    const chatWindow = document.getElementById('aiChatWindow');
-    const closeChatBtn = document.getElementById('closeChatBtn');
-    const chatInput = document.getElementById('aiChatInput');
-    const sendChatBtn = document.getElementById('sendChatBtn');
-
-    if (chatBubble) {
-      chatBubble.addEventListener('click', () => {
-        chatWindow.classList.toggle('hidden');
-      });
-    }
-    if (closeChatBtn) {
-      closeChatBtn.addEventListener('click', () => {
-        chatWindow.classList.add('hidden');
-      });
-    }
-    const sendMessageHandler = () => {
-      if (chatInput.value.trim()) {
-        this.handleSendMessage();
-      }
-    };
-    if (sendChatBtn) sendChatBtn.addEventListener('click', sendMessageHandler);
-    if (chatInput) {
-      chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          sendMessageHandler();
-        }
-      });
-    }
-
-    document.getElementById('getForecastBtn').addEventListener('click', () => this.getForecast());
   }
 
   updateUserInfo() {
+    // FIX: Display user's email or display name
     if (this.currentUser) {
-      document.getElementById('currentUserEmail').textContent = this.currentUser.email;
+        const displayName = this.currentUser.displayName || this.currentUser.email;
+        document.getElementById('currentUserEmail').textContent = displayName;
     }
   }
 
@@ -915,7 +930,8 @@ class TradingJournalApp {
         slider.addEventListener('input', () => (display.textContent = slider.value));
       }
     });
-    const calcFields = ['quantity', 'entryPrice', 'exitPrice', 'stopLoss', 'targetPrice', 'direction'];
+    // FIX: Add commission and other charges to calculation trigger fields
+    const calcFields = ['quantity', 'entryPrice', 'exitPrice', 'stopLoss', 'targetPrice', 'direction', 'commission', 'otherCharges'];
     calcFields.forEach(name => {
       form.querySelector(`[name="${name}"]`)?.addEventListener('input', () => this.updateCalculations());
     });
@@ -945,15 +961,24 @@ class TradingJournalApp {
   }
 
   updateCalculations() {
-    const fd = new FormData(document.getElementById('addTradeForm'));
+    const form = document.getElementById('addTradeForm');
+    const fd = new FormData(form);
     const qty = parseFloat(fd.get('quantity')) || 0;
     const entry = parseFloat(fd.get('entryPrice')) || 0;
     const exit = parseFloat(fd.get('exitPrice')) || 0;
     const sl = parseFloat(fd.get('stopLoss')) || 0;
     const target = parseFloat(fd.get('targetPrice')) || 0;
     const dir = fd.get('direction');
+    
+    // FIX: Get commission and other charges from form
+    const commission = parseFloat(fd.get('commission')) || 0;
+    const otherCharges = parseFloat(fd.get('otherCharges')) || 0;
+
     let gross = (qty && entry && exit) ? (dir === 'Long' ? (exit - entry) * qty : (entry - exit) * qty) : 0;
-    const net = gross - 40;
+    
+    // FIX: Update net P&L calculation
+    const net = gross - commission - otherCharges;
+    
     let riskReward = 0;
     if (qty && entry && sl && target && dir) {
       const risk = Math.abs(entry - sl);
@@ -988,6 +1013,10 @@ class TradingJournalApp {
       const customStrategy = fd.get('other_strategy').trim();
       finalStrategy = customStrategy || 'Other (unspecified)';
     }
+    
+    // FIX: Get commission and other charges
+    const commission = parseFloat(fd.get('commission')) || 0;
+    const otherCharges = parseFloat(fd.get('otherCharges')) || 0;
 
     const trade = {
       symbol: fd.get('symbol').toUpperCase(),
@@ -1030,10 +1059,15 @@ class TradingJournalApp {
       economicEvents: this.getCheckboxValues(form, 'economicEvents'),
       personalDistractions: this.getCheckboxValues(form, 'personalDistractions'),
       followedRules: this.getCheckboxValues(form, 'followedRules'),
+      commission: commission, // FIX: Save commission
+      otherCharges: otherCharges, // FIX: Save other charges
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     trade.grossPL = trade.direction === 'Long' ? (trade.exitPrice - trade.entryPrice) * trade.quantity : (trade.entryPrice - trade.exitPrice) * trade.quantity;
-    trade.netPL = trade.grossPL - 40;
+    
+    // FIX: Update net P&L calculation
+    trade.netPL = trade.grossPL - trade.commission - trade.otherCharges;
+
     if (trade.stopLoss && trade.targetPrice) {
       const risk = Math.abs(trade.entryPrice - trade.stopLoss);
       const reward = Math.abs(trade.targetPrice - trade.entryPrice);
@@ -1109,6 +1143,7 @@ class TradingJournalApp {
 
   /* -------------------------- MODAL & DETAILS ------------------------------ */
   showTradeDetails(id) {
+    this.currentEditingTradeId = id; // FIX: Set current editing trade ID
     const t = this.trades.find(tr => tr.id === id);
     if (!t) return;
     const rrText = t.riskRewardRatio ? t.riskRewardRatio.toFixed(2) : '0.00';
@@ -1578,7 +1613,10 @@ class TradingJournalApp {
     for (let d = 1; d <= monthEnd.getDate(); d++) {
       const dayEl = document.createElement('div');
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const tradesOnDay = this.trades.filter(t => t.entryDate && t.entryDate.startsWith(key));
+      
+      // FIX: Correct date comparison
+      const tradesOnDay = this.trades.filter(t => t.entryDate && t.entryDate.substring(0, 10) === key);
+
       let cls = 'no-trades';
       if (tradesOnDay.length > 0) {
         const pl = tradesOnDay.reduce((sum, t) => sum + t.netPL, 0);
@@ -1813,7 +1851,7 @@ class TradingJournalApp {
     if (recurringLosses.length > 0) {
       return `<div class="suggestion-item suggestion-warning">You have recurring losses with: <strong>${recurringLosses[0][0]}</strong> (${recurringLosses[0][1]} times). Analyze these trades to find the issue.</div>`;
     }
-    return '<div class="suggestion-item suggestion-info">No significant recurring losing patterns detected. Good job diversifying your approach.</div>';
+    return '<div class="suggestion-item suggestion-info">No significant recurring patterns detected. Good job diversifying your approach.</div>';
   }
 
   analyzeEntries() {
@@ -1933,14 +1971,15 @@ class TradingJournalApp {
     messageElement.className = `chat-message ${sender}-message`;
 
     if (sender === 'ai') {
-      let html = text
-        .replace(/### (.*)/g, '<h3>$1</h3>')
-        .replace(/^- (.*)/gm, '<li>$1</li>')
-        .replace(/\n\n/g, '<br><br>');
-      if (html.includes('<li>')) {
-        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-      }
-      messageElement.innerHTML = html;
+        let html = text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\* (.*)/g, '<li>$1</li>')
+            .replace(/(\r\n|\n|\r)/gm, '<br>');
+
+        if (html.includes('<li>')) {
+            html = `<ul>${html}</ul>`;
+        }
+        messageElement.innerHTML = html;
     } else {
       messageElement.textContent = text;
     }
@@ -1998,7 +2037,9 @@ class TradingJournalApp {
     for (let d = 1; d <= monthEnd.getDate(); d++) {
       const dayEl = document.createElement('div');
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const tradesOnDay = this.trades.filter(t => t.entryDate && t.entryDate.startsWith(key));
+      
+      // FIX: Correct date comparison
+      const tradesOnDay = this.trades.filter(t => t.entryDate && t.entryDate.substring(0, 10) === key);
 
       let cls = 'no-trades';
       if (tradesOnDay.length > 0) {
@@ -2020,181 +2061,82 @@ class TradingJournalApp {
     }
   }
   // --- END: NEW DASHBOARD CALENDAR METHOD ---
+  
+  // --- START: NEW EDIT TRADE MODAL METHODS ---
+    showEditTradeModal() {
+        const trade = this.trades.find(t => t.id === this.currentEditingTradeId);
+        if (!trade) {
+            this.showToast('Could not find trade to edit.', 'error');
+            return;
+        }
 
-  // --- START: NEW FORECAST METHODS ---
-  async getForecast() {
-    const symbol = document.getElementById('forecastSymbol').value.trim();
-    const timeframe = document.getElementById('forecastTimeframe').value;
-    const steps = document.getElementById('forecastSteps').value;
-    const initialMsg = document.getElementById('forecastInitialMessage');
-    const chartContainer = document.getElementById('forecastChartContainer');
-    const metricsContainer = document.getElementById('forecastMetricsContainer');
-    const forecastTitle = document.getElementById('forecastTitle');
+        this.hideTradeModal(); // Close the details modal
 
-    if (!symbol) {
-      this.showToast("Please enter an asset symbol.", "warning");
-      return;
+        const modalBody = document.getElementById('editTradeModalBody');
+        modalBody.innerHTML = `
+            <form id="editTradeForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Symbol</label>
+                        <input type="text" name="symbol" class="form-control" value="${trade.symbol}" required>
+                    </div>
+                     <div class="form-group">
+                        <label class="form-label">Net P&L (${this.currencySymbol})</label>
+                        <input type="number" name="netPL" class="form-control" value="${trade.netPL}" required step="any">
+                    </div>
+                    <div class="form-group full-width">
+                         <label class="form-label">Notes</label>
+                         <textarea name="notes" class="form-control" rows="3">${trade.notes || ''}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn--outline" onclick="app.hideEditTradeModal()">Cancel</button>
+                    <button type="submit" class="btn btn--primary">Save Changes</button>
+                </div>
+            </form>
+        `;
+
+        document.getElementById('editTradeForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveTradeChanges();
+        });
+
+        document.getElementById('editTradeModal').classList.remove('hidden');
     }
 
-    initialMsg.innerHTML = '<div class="loading">Fetching Yahoo Finance data & generating AI forecast...</div>';
-    initialMsg.style.display = 'block';
-    chartContainer.style.display = 'none';
-    metricsContainer.style.display = 'none';
-
-    try {
-      const response = await fetch('/.netlify/functions/get-yahoofinance-forecast', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          symbol,
-          timeframe,
-          steps
-        })
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to generate forecast.');
-      }
-
-      const data = await response.json();
-
-      forecastTitle.textContent = `${(data.displayName || symbol).toUpperCase()} Price Forecast`;
-      initialMsg.style.display = 'none';
-      chartContainer.style.display = 'block';
-      metricsContainer.style.display = 'block';
-
-      this.renderForecastChart(data.chartData, parseInt(steps), data.currency);
-      this.renderForecastMetrics(data.metrics, data.currency);
-
-    } catch (error) {
-      console.error("Error fetching AI forecast:", error);
-      initialMsg.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
-    }
-  }
-
-  renderForecastChart(data, forecastSteps, currencyCode) {
-    const ctx = document.getElementById('forecastChartCanvas').getContext('2d');
-    if (this.forecastChart) {
-      this.forecastChart.destroy();
+    hideEditTradeModal() {
+        document.getElementById('editTradeModal').classList.add('hidden');
+        this.currentEditingTradeId = null;
     }
 
-    const forecastStartIndex = data.length - forecastSteps;
-    const historicalData = data.slice(0, forecastStartIndex + 1);
-    const forecastData = data.slice(forecastStartIndex);
+    async saveTradeChanges() {
+        if (!this.currentEditingTradeId) return;
 
-    const forecastPoints = forecastData.map(d => d ? d.price : null);
-    const alignedForecastData = Array(historicalData.length - 1).fill(null).concat(forecastPoints);
+        const form = document.getElementById('editTradeForm');
+        const updatedData = {
+            symbol: form.symbol.value.toUpperCase(),
+            netPL: parseFloat(form.netPL.value),
+            notes: form.notes.value,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
 
-    this.forecastChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: data.map(d => d ? d.date : ''),
-        datasets: [{
-          label: 'Historical',
-          data: historicalData.map(d => d ? d.price : null),
-          borderColor: 'rgba(var(--color-secondary-val), 1)',
-          backgroundColor: 'rgba(var(--color-secondary-val), 0.1)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-        }, {
-          label: 'Forecast',
-          data: alignedForecastData,
-          borderColor: 'rgba(var(--color-secondary-val), 1)',
-          borderDash: [5, 5],
-          fill: false,
-          tension: 0.3,
-          pointRadius: 0,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                let label = context.dataset.label || '';
-                if (label) {
-                  label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                  label += this.formatCurrency(context.parsed.y, currencyCode);
-                }
-                return label;
-              }
+        try {
+            await this.db.collection('users').doc(this.currentUser.uid).collection('trades').doc(this.currentEditingTradeId).update(updatedData);
+
+            const tradeIndex = this.allTrades.findIndex(t => t.id === this.currentEditingTradeId);
+            if (tradeIndex !== -1) {
+               this.allTrades[tradeIndex] = { ...this.allTrades[tradeIndex], ...updatedData };
             }
-          }
-        },
-        scales: {
-          x: {
-            ticks: {
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 7
-            }
-          },
-          y: {
-            ticks: {
-              callback: (value) => this.formatCurrency(value, currencyCode)
-            }
-          }
-        },
-        interaction: {
-          intersect: false,
-          mode: 'index',
-        },
-      }
-    });
-  }
 
-  renderForecastMetrics(metrics, currencyCode) {
-    const grid = document.getElementById('forecastMetricsGrid');
-    grid.innerHTML = '';
-
-    const metricsData = [{
-      title: 'Trend',
-      value: metrics.trend,
-      arrow: metrics.trend === 'Bullish' ? '↗' : '↘'
-    }, {
-      title: 'Avg Percentage Change',
-      value: `${metrics.avgPercentageChange}%`
-    }, {
-      title: 'Volatility',
-      value: `${metrics.volatility}%`
-    }, {
-      title: 'Cumulative Return',
-      value: `${metrics.cumulativeReturn}%`
-    }, {
-      title: 'Concentration Price',
-      value: this.formatCurrency(metrics.concentrationPrice, currencyCode)
-    }, {
-      title: 'Maximum Drawdown',
-      value: `${metrics.maxDrawdown}%`
-    }];
-
-    metricsData.forEach(metric => {
-      const isNegative = parseFloat(metric.value) < 0 || metric.trend === 'Bearish';
-      const colorClass = isNegative ? 'negative' : 'positive';
-
-      const card = document.createElement('div');
-      card.className = 'metric-card-forecast';
-      card.innerHTML = `
-              <div class="metric-card-forecast__title">${metric.title}</div>
-              <div class="metric-card-forecast__value ${colorClass}">
-                  ${metric.value}
-                  ${metric.arrow ? `<span class="arrow">${metric.arrow}</span>` : ''}
-              </div>
-          `;
-      grid.appendChild(card);
-    });
-  }
+            this.showToast('Trade updated successfully!', 'success');
+            this.hideEditTradeModal();
+            document.dispatchEvent(new CustomEvent('data-changed'));
+        } catch (error) {
+            this.showToast(`Error updating trade: ${error.message}`, 'error');
+            console.error("Error updating trade:", error);
+        }
+    }
+  // --- END: NEW EDIT TRADE MODAL METHODS ---
 
   /* ------------------------ EXPORT ------------------------------------- */
   exportCSV() {
