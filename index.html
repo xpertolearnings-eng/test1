@@ -222,15 +222,6 @@
                                         <div class="form-group"><label class="form-label">Exit Price *</label><input type="number" name="exitPrice" class="form-control" required placeholder="Exit price" step="0.01" min="0"><div class="form-error" id="exitPrice-error"></div></div>
                                         <div class="form-group"><label class="form-label">Stop Loss</label><input type="number" name="stopLoss" class="form-control" placeholder="Stop loss price" step="0.01" min="0"></div>
                                         <div class="form-group"><label class="form-label">Target Price</label><input type="number" name="targetPrice" class="form-control" placeholder="Target price" step="0.01" min="0"></div>
-                                        <!-- FIX: Added Commission and Charges fields -->
-                                        <div class="form-group">
-                                            <label class="form-label">Commission</label>
-                                            <input type="number" name="commission" class="form-control" placeholder="e.g., 20" step="0.01" value="20">
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label">Other Charges</label>
-                                            <input type="number" name="otherCharges" class="form-control" placeholder="e.g., 20" step="0.01" value="20">
-                                        </div>
                                         
                                         <div class="form-group">
                                             <label class="form-label">Strategy</label>
@@ -265,6 +256,8 @@
                                         <div class="form-group"><label class="form-label">Confidence Level (1-10)</label><input type="range" name="confidenceLevel" class="range-input" min="1" max="10" value="5"><div class="range-value">5</div></div>
                                         <div class="form-group"><label class="form-label">Entry Date *</label><input type="datetime-local" name="entryDate" class="form-control" required><div class="form-error" id="entryDate-error"></div></div>
                                         <div class="form-group"><label class="form-label">Exit Date *</label><input type="datetime-local" name="exitDate" class="form-control" required><div class="form-error" id="exitDate-error"></div></div>
+                                        <div class="form-group"><label class="form-label">Commission</label><input type="number" name="commission" class="form-control" placeholder="e.g., 20" step="any" min="0"></div>
+                                        <div class="form-group"><label class="form-label">Other Charges</label><input type="number" name="otherCharges" class="form-control" placeholder="e.g., 15.5" step="any" min="0"></div>
                                         <div class="form-group"><label class="form-label">Pre-Trade Emotion</label><select name="preEmotion" class="form-control"><option value="">Select Emotion</option><option value="Confident">Confident</option><option value="Excited">Excited</option><option value="Nervous">Nervous</option><option value="Fearful">Fearful</option><option value="Neutral">Neutral</option><option value="Greedy">Greedy</option><option value="Impatient">Impatient</option></select></div>
                                         <div class="form-group"><label class="form-label">Post-Trade Emotion</label><select name="postEmotion" class="form-control"><option value="">Select Emotion</option><option value="Satisfied">Satisfied</option><option value="Relieved">Relieved</option><option value="Disappointed">Disappointed</option><option value="Frustrated">Frustrated</option><option value="Regretful">Regretful</option><option value="Elated">Elated</option><option value="Neutral">Neutral</option></select></div>
                                         <div class="form-group full-width"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="3" placeholder="What went well, what went wrong, improvements needed..."></textarea></div>
@@ -494,19 +487,6 @@
         </main>
         <div id="tradeModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Trade Details</h2><button class="modal-close" onclick="app.hideTradeModal()">&times;</button></div><div class="modal-body" id="tradeModalBody"></div><div class="modal-footer"><button class="btn btn--outline" onclick="app.hideTradeModal()">Close</button><button class="btn btn--primary" id="editTradeBtn">Edit Trade</button></div></div></div>
         
-        <!-- FIX: Added Edit Trade Modal -->
-        <div id="editTradeModal" class="modal hidden">
-            <div class="modal-content" style="max-width: 800px;">
-                <div class="modal-header">
-                    <h2>Edit Trade</h2>
-                    <button class="modal-close" onclick="app.hideEditTradeModal()">&times;</button>
-                </div>
-                <div class="modal-body" id="editTradeModalBody">
-                    <!-- Edit form will be rendered here by JS -->
-                </div>
-            </div>
-        </div>
-
         <div id="noteModal" class="modal hidden">
             <div class="modal-content">
                 <div class="modal-header">
@@ -521,6 +501,19 @@
                 </div>
             </div>
         </div>
+
+        <div id="editTradeModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Trade</h2>
+                    <button class="modal-close" onclick="app.hideEditTradeModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="editTradeModalBody">
+                    <!-- Edit form will be injected here -->
+                </div>
+            </div>
+        </div>
+
 
         <div id="rulebookModal" class="modal hidden">
             <div class="modal-content">
@@ -581,13 +574,12 @@
     </div>
     <div id="toastContainer" class="toast-container"></div>
     <div id="calendarTooltip" class="calendar-tooltip"></div>
-    
-    <!-- FIX: Added centered loader -->
-    <div id="loader-overlay" class="hidden">
-        <div id="loader-spinner"></div>
+
+    <!-- Centered Loader Element -->
+    <div id="loader-overlay" class="loader-overlay hidden">
+        <div class="loader-spinner"></div>
     </div>
 
     <script src="app.js"></script>
 </body>
 </html>
-
