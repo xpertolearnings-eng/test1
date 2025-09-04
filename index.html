@@ -27,7 +27,7 @@
             <div id="loginForm" class="auth-form active">
                 <h2>Login to Your Journal</h2>
                 <p style="text-align: center; color: var(--color-text-secondary); margin-bottom: 24px; font-size: 14px;">
-                   Enter the email you used to subscribe. We'll send you a Login link to log in instantly.
+                   Enter the email you used to subscribe. We'll send you a magic link to log in instantly.
                 </p>
                 <form id="loginFormElement" novalidate>
                     <div class="form-group">
@@ -35,7 +35,7 @@
                         <input type="email" name="email" class="form-control" required placeholder="Enter your subscription email">
                         <div class="form-error" id="login-email-error"></div>
                     </div>
-                    <button type="submit" class="btn btn--primary btn--full-width">Send Login Link</button>
+                    <button type="submit" class="btn btn--primary btn--full-width">Send Magic Link</button>
                 </form>
             </div>
 
@@ -43,7 +43,7 @@
                 <h2>Check Your Email</h2>
                 <p>We've sent a magic login link to <strong id="sentToEmail" style="color: var(--color-primary);"></strong>. Click the link to sign in.</p>
                 <p style="color: var(--color-text-secondary); font-size: 12px; margin-top: 16px;">Didn't receive it? Check your spam folder.</p>
-                <button id="resendMagicLinkBtn" class="btn btn--secondary btn--full-width" style="margin-top: 12px;">Resend Login Link</button>
+                <button id="resendMagicLinkBtn" class="btn btn--secondary btn--full-width" style="margin-top: 12px;">Resend Magic Link</button>
             </div>
 
 
@@ -496,7 +496,7 @@
         
         <!-- FIX: Added Edit Trade Modal -->
         <div id="editTradeModal" class="modal hidden">
-            <div class="modal-content">
+            <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
                     <h2>Edit Trade</h2>
                     <button class="modal-close" onclick="app.hideEditTradeModal()">&times;</button>
@@ -581,6 +581,11 @@
     </div>
     <div id="toastContainer" class="toast-container"></div>
     <div id="calendarTooltip" class="calendar-tooltip"></div>
+    
+    <!-- FIX: Added centered loader -->
+    <div id="loader-overlay" class="hidden">
+        <div id="loader-spinner"></div>
+    </div>
 
     <script src="app.js"></script>
 </body>
